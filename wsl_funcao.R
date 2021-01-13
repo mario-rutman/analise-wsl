@@ -22,18 +22,24 @@ library(tibble)
 # Cada phase, round (quartas, semi, final etc) é um url diferente.
 
 
-func_etapas <- function(roundID, num_heat, athlete_per_heat, quart_semi_final,
+func_etapas <- function(base_url, evento_url,roundID, num_heat, athlete_per_heat, quart_semi_final,
                         ano, periodo,
                         lugar, evento, genero) {
+  
+  # As partes da url são:
+  # A base_url "https://www.worldsurfleague.com/events/2008/mct/"
+  # O evento_url "48/boost-mobile-pro?roundId="
+  # e o número do round 
+  
   # Criando a coluna score.
-  vju <- paste0('https://www.worldsurfleague.com/events/2008/mct/4/quiksilver-pro-gold-coast?roundId=',roundID)
+  vju <- paste0(base_url, event_url, roundID)
   score <- read_html(vju)%>%
     html_nodes(".wave-wrap .score") %>%
     html_text() %>%
     str_squish()
   
   # Criando a coluna athlete.
-  kol <- paste0('https://www.worldsurfleague.com/events/2008/mct/4/quiksilver-pro-gold-coast?roundId=',roundID)
+  kol <- paste0(base_url, event_url, roundID)
   athlete <- read_html(kol)%>%
     html_nodes(".avatar--athlete") %>%
     html_text() %>%
