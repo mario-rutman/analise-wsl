@@ -1,12 +1,10 @@
 # O trabalho para fazer um site com analises dos resultados dos campeonatos da 
-# World Surf League terá 3 etapas: a raspagem dos dados; a análise; e, a apresentação
-# no Shiny.
+# World Surf League terá 3 etapas: a raspagem dos dados; a análise propriamente dita;
+# e, a apresentação usando o Shiny num site.
+
 # Agora farei a raspagem dos dados encontrados no site. Será uma raspagem meio no braço,
 # pois ainda estou conhecendo o pacote rvest.
 
-
-
-# Vou usar o pacote “rvest”.
 library(tidyverse)
 library(rvest)
 library(dplyr)
@@ -16,10 +14,9 @@ library(purrr)
 library(lubridate)
 library(tibble)
 
-# Cada round tem um id diferente na url.
-
-
-# Cada phase, round (quartas, semi, final etc) é um url diferente.
+# A func_etapas usa uma série de informações para ao final obter um dataframe
+# de uma etapa, por exemplo o quiksilver pro gold coast de homens de 2008 ou 
+# oi rio pro masculino de 2017 etc.
 
 
 func_etapas <- function(base_url, 
@@ -32,11 +29,13 @@ func_etapas <- function(base_url,
                         lugar, evento, genero) {
   
   # As partes da url são:
-  # A base_url que vai do começo até a mct
-  # "https://www.worldsurfleague.com/events/2008/mct"
-  # O evento_url que vai do travessão até o sinal de igual
+  # A base_url que vai do começo até  mct (men's CT)
+  # "https://www.worldsurfleague.com/events/2008/mct".
+  
+  # O evento_url que vai do travessão até o sinal de igual.
   # "/48/boost-mobile-pro?roundId="
-  # E o número do roundID, é só um número.
+  # E o número do roundID (número na url que indica a parte da competição:
+  # final, semifinal, quartas etc), é só um número.
   
   
   # Criando a coluna score.
@@ -51,13 +50,18 @@ func_etapas <- function(base_url,
   athlete <- read_html(kol)%>%
     html_nodes(".avatar--athlete") %>%
     html_text() %>%
-    str_squish() %>% 
-    rep(each = 15) 
+    str_squish() %>%
+    # Foi repetido 15 vezes porque cada atleta tem direito a 15 ondas.
+    rep(each = 15)  
   
-  # Criando a coluna heat.
+  # Criando a coluna heat. 
+  # Cada round tem umaquantidade de baterias e cada bateria uma quantidade de surfista.
   heat <- rep(c(1:num_heat), each = athlete_per_heat * 15)
   
   # Número de linhas do tibble.
+  # Este número irá ajudar a fazer as repetições dos itens que não mudam em cada etapa:
+  # ano; local; genero; parada etc. 
+   
   num_lin <- length(athlete)
   
   # Coluna year
@@ -67,7 +71,7 @@ func_etapas <- function(base_url,
   when <- rep(periodo, num_lin)
   
   # Local do campeonato.
-  local <- rep(lugar,num_lin)
+  local <- rep(lugar, num_lin)
   
   # Cammpeonato masculino ou feminino (Mens, Womens)
   gender <- rep(genero, num_lin)
@@ -84,7 +88,7 @@ func_etapas <- function(base_url,
   # É o número da onda do competidor.
   wave <- rep(1:15, num_lin/15)
   
-  # Criando o tibble e salvando.
+  # Criando o tibble.
   tabela <- tibble(year, when, local, gender, event, stop,
                    round, heat, athlete, wave, score) %>%
     # Excluindo as células de score vazias.
@@ -92,33 +96,44 @@ func_etapas <- function(base_url,
   
     }
 
+# Se aplicarmos a função a um elemento de cada argumento obtemos uma tibble
+# de cada round, mas cada etapa é composta em geral de 7 rounds até chegar 
+# à final.
+# Desse modo é conveniente passar uma lista com as informações de cada etapa,
+# assim obteeremos um tibble daquela etapa inteira.
 
-a <- list('https://www.worldsurfleague.com/events/2008/mct')
-b <- list('/4/quiksilver-pro-gold-coast?roundId=')
-c <- list(16,36,20,42,48,69,71)
-d <- list(16,16,16,8,4,2,1)
-e <- list(3,2,2,2,2,2,2)
+# Cada lista é composta pelos dados pertinentes.
+# É importante notar que se for uma informação que não muda nas sete etapas
+# basta ser escrita uma única vez, a funão faz a reciclagem.
+
+a <- list('https://www.worldsurfleague.com/events/2008/mct')#url base
+b <- list('/4/quiksilver-pro-gold-coast?roundId=')#url da etapa
+c <- list(16,36,20,42,48,69,71)#roundID
+d <- list(16,16,16,8,4,2,1)#número de baterias
+e <- list(3,2,2,2,2,2,2)#nmúmero de atletas por bateria
 f <- list('Round 1', 'Round 2', 'Round3', 'Round 4',
-          'Quarterfinal', 'Semifinal', 'Final')
-g <- list(2008)
-h <- list("Feb 23 - May 5, 2008")
-i <- list(1)
-j <- list("Gold Coast, Queensland, Australia")
-k <- list("Quiksilver Pro Gold Coast")
-l <- list("men's")
+          'Quarterfinal', 'Semifinal', 'Final')#os nomes das baterias
+g <- list(2008)#ano
+h <- list("Feb 23 - May 5, 2008")#período que aconjteceu a etapa
+i <- list(1)#número da etapa, em geral são 11 etapas por ano.
+j <- list("Gold Coast, Queensland, Australia")#local
+k <- list("Quiksilver Pro Gold Coast")#nome da etapa
+l <- list("men's")#genero dos atletas
 
-# Agora criando o df do men's ct de 2008 etapa quiksilver pro gold coast.
+# Agora criando o tibble do men's ct de 2008 etapa quiksilver pro gold coast.
 mens_2008_quiksilver_pro_gold_coast <- pmap(list(a,b,c,d,e,f,g,h,i,j,k,l),
-                                            func_etapas) %>% 
+                                            func_etapas) %>%
+  #Até aqui temos uma list de tibbles, o bind_rows junta todas elas em uma só.
   bind_rows()
 
-# Salvando o referido df em .rds.
+# Salvando o referido tibble em .rds.
 write_rds(mens_2008_quiksilver_pro_gold_coast,
           "mens_2008_quiksilver_pro_gold_coast.rds")
 
 
-# Esta função gera um arquivo .rds cada etapa. Depois é preciso juntar todas
-# de modo a reunir todas etapas de 2008.
+# O resultado até aqui é uma tibble de uma etapa de um campeonato (men's CT)
+# Depois será preciso reunir todas em um único .rds, para tal usa-se a função abaixo.
+# Para definir a path usa-se o getwd().
 
 files <- list.files(path = "C:/Users/marru/OneDrive/Documentos/R projetos no Acer Aspire 3/wsl_analise",
                     pattern = "\\.rds$", full.names = TRUE)
